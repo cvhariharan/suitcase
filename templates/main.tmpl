@@ -1,0 +1,108 @@
+package main
+
+import (
+	"bytes"
+	_ "embed"
+	"flag"
+	"fmt"
+	"io"
+	"log"
+	"os"
+	"os/exec"
+	"runtime"
+	"time"
+
+	"filippo.io/age"
+	"golang.org/x/sys/unix"
+)
+
+//go:embed {{ .FileName }}
+var embeddedFile []byte
+
+const EXIT_DELAY_SEC = 10
+
+func main() {
+	log.SetFlags(log.Lshortfile)
+	privKey := flag.String("privateKey", "", "Private key to decrypt the file")
+	outputFile := flag.String("output", "", "Output file name, if specified, the contents will be written to a file on disk")
+	flag.Parse()
+
+	if *privKey == "" {
+		log.Fatal("Private key cannot be empty")
+	}
+
+	identity, err := age.ParseX25519Identity(*privKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	decrypted, err := age.Decrypt(bytes.NewReader(embeddedFile), identity)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var f *os.File
+	out := "file.out"
+	fd, err := Memfile(out)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer unix.Close(fd)
+
+	f = FdtoFile(fd)
+	defer f.Close()
+
+	if *outputFile != "" {
+		out = *outputFile
+		f, err = os.Create(out)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	if n, err := io.Copy(f, decrypted); err != nil {
+		log.Fatal(n, err)
+	}
+
+	openInApp(f.Name())
+	time.Sleep(EXIT_DELAY_SEC * time.Second)
+}
+
+func openInApp(path string) {
+	var err error
+
+	switch runtime.GOOS {
+	case "linux":
+		err = exec.Command("xdg-open", path).Run()
+	case "windows":
+		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", path).Run()
+	case "darwin":
+		err = exec.Command("open", path).Run()
+	default:
+		err = fmt.Errorf("unsupported platform")
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func Memfile(name string) (int, error) {
+	fd, err := unix.MemfdCreate(name, 0)
+	if err != nil {
+		log.Println(err)
+		return -1, err
+	}
+
+	err = unix.Ftruncate(fd, 0)
+	if err != nil {
+		log.Println(err)
+		return -1, err
+	}
+
+	return fd, nil
+}
+
+func FdtoFile(fd int) *os.File {
+	pid := os.Getpid()
+	return os.NewFile(uintptr(fd), fmt.Sprintf("/proc/%d/fd/%d", pid, fd))
+}
