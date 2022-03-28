@@ -98,7 +98,7 @@ func Build() error {
 
 	stop <- 1
 
-	exec.Command("rm", "go.*", "*.go").Run()
+	exec.Command("rm", "go.mod", "go.sum", "main.go").Run()
 	return nil
 }
 
