@@ -1,5 +1,8 @@
 ## Suitcase
 A self-contained encrypted file. No need for any client-side software to decrypt the file. Uses [age](https://github.com/FiloSottile/age) for encryption.
+<p align="center">
+    <img src="./images/suitcase.gif" alt="suitcase" width="700">
+</p>  
 
 ## Usage
 Any arbitraty file can be packed into a `suitcase` by specifying the recipient public key. This is the only time a CLI tool is required. Go compiler must be installed.
