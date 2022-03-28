@@ -103,7 +103,8 @@ func Build() error {
 }
 
 func showSpinner(stop chan int) {
-	s := spinner.New(spinner.CharSets[13], 100*time.Millisecond)
+	s := spinner.New(spinner.CharSets[36], 100*time.Millisecond)
+	s.Prefix = "Building... "
 	s.Start()
 
 	for {
