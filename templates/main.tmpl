@@ -23,7 +23,7 @@ const EXIT_DELAY_SEC = 10
 
 func main() {
 	log.SetFlags(log.Lshortfile)
-	privKey := flag.String("privateKey", "", "Private key to decrypt the file")
+	privKey := flag.String("private-key", "", "Private key to decrypt the file")
 	outputFile := flag.String("output", "", "Output file name, if specified, the contents will be written to a file on disk")
 	flag.Parse()
 

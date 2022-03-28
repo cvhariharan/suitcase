@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"flag"
+	"fmt"
 	"html/template"
 	"io"
 	"log"
@@ -16,37 +17,68 @@ import (
 //go:embed templates/*
 var fs embed.FS
 
+type stringArr []string
+
+func (s *stringArr) String() string {
+	return fmt.Sprint(*s)
+}
+
+func (s *stringArr) Set(val string) error {
+	*s = append(*s, val)
+	return nil
+}
+
+var usage = `
+suitcase (-p PUBLICKEY)... -i INPUT
+
+Options:
+	-p, --public-key        Public keys of the recipients. Can be repeated. Should begin with age1
+	-i, --input             Input file to encrypt
+
+The output will be an executable in the working directory with the contents of the file
+embedded in it. No need for any client-side software to decrypt the file.
+`
+
 func main() {
-	log.SetFlags(log.Lshortfile)
-	pubKey := flag.String("publicKey", "", "Private key to decrypt the file")
-	inputFile := flag.String("input", "", "Input file name")
+	var pubKey stringArr
+	var inputFile string
+
+	flag.Usage = func() {
+		fmt.Println(usage)
+	}
+
+	if len(os.Args) == 1 {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	flag.Var(&pubKey, "public-key", "Public key to encrypt the file")
+	flag.Var(&pubKey, "p", "Public key to encrypt the file")
+	flag.StringVar(&inputFile, "input", "", "Input file name")
+	flag.StringVar(&inputFile, "i", "", "Input file name")
 	flag.Parse()
 
-	if *pubKey == "" || *inputFile == "" {
+	if len(pubKey) == 0 || inputFile == "" {
 		log.Fatal("Public key and input file name cannot be empty")
 	}
 
-	recipient, err := age.ParseX25519Recipient(*pubKey)
-	if err != nil {
-		log.Fatal(err)
+	var recipients []age.Recipient
+	for _, v := range pubKey {
+		recipient, err := age.ParseX25519Recipient(v)
+		checkError(err)
+		recipients = append(recipients, recipient)
 	}
 
-	encryptedFileName := *inputFile + ".enc"
+	encryptedFileName := inputFile + ".enc"
 	f, err := os.Create(encryptedFileName)
-	if err != nil {
-		log.Fatal(err)
-	}
+	checkError(err)
 	defer f.Close()
 
-	encrypted, err := age.Encrypt(f, recipient)
-	if err != nil {
-		log.Fatal(err)
-	}
+	encrypted, err := age.Encrypt(f, recipients...)
+	checkError(err)
 
-	in, err := os.Open(*inputFile)
-	if err != nil {
-		log.Fatal(err)
-	}
+	in, err := os.Open(inputFile)
+	checkError(err)
 	defer in.Close()
 
 	if _, err = io.Copy(encrypted, in); err != nil {
@@ -60,28 +92,20 @@ func main() {
 		},
 	}
 	templateData, err := fs.ReadFile("templates/main.tmpl")
-	if err != nil {
-		log.Fatal(err)
-	}
+	checkError(err)
 
 	t := template.Must(template.New("main.tmpl").Funcs(fmap).Parse(string(templateData)))
 
 	out, err := os.Create("main.go")
-	if err != nil {
-		log.Fatal(err)
-	}
+	checkError(err)
 
 	err = t.Execute(out, struct {
 		FileName string
 	}{f.Name()})
-	if err != nil {
-		log.Fatal(err)
-	}
+	checkError(err)
 
 	err = utils.Build()
-	if err != nil {
-		log.Fatal(err)
-	}
+	checkError(err)
 
 	checkError(os.Remove(encryptedFileName))
 }

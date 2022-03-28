@@ -7,6 +7,7 @@ require (
 	github.com/briandowns/spinner v1.18.1
 	github.com/hashicorp/go-version v1.4.0
 	github.com/rs/xid v1.4.0
+	github.com/spf13/pflag v1.0.5
 	golang.org/x/mod v0.5.1
 	golang.org/x/sys v0.0.0-20210903071746-97244b99971b
 )
