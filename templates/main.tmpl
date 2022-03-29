@@ -89,13 +89,11 @@ func openInApp(path string) {
 func Memfile(name string) (int, error) {
 	fd, err := unix.MemfdCreate(name, 0)
 	if err != nil {
-		log.Println(err)
 		return -1, err
 	}
 
 	err = unix.Ftruncate(fd, 0)
 	if err != nil {
-		log.Println(err)
 		return -1, err
 	}
 

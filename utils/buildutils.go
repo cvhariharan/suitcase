@@ -91,7 +91,11 @@ func Build() error {
 		return err
 	}
 
-	err = exec.Command("go", "build", "-o", "secure-case").Run()
+	cmd := exec.Command("go", "build", "-o", "secure-case")
+
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, "CGO_ENABLED=0")
+	err = cmd.Run()
 	if err != nil {
 		return err
 	}
